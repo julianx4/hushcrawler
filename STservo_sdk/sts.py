@@ -117,13 +117,13 @@ class sts(protocol_packet_handler):
         :return: Result of the ID change operation.
         """
         # Unlock EPROM
-        self.unLockEprom(old_id)
+        print(self.unLockEprom(old_id))
 
         # Write new ID to the servo
         result = self.write1ByteTxRx(old_id, STS_ID, new_id)
 
         # Lock EPROM
-        self.LockEprom(new_id)
+        print(self.LockEprom(new_id))
 
         return result
         
