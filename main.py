@@ -6,7 +6,7 @@ BAUDRATE = 1000000
 DEVICENAME = '/dev/ttyACM0'
 
 TARGET_POSITION_THRESHOLD  = 20          # SCServo moving status threshold
-MOVING_SPEED               = 2000         # SCServo moving speed
+MOVING_SPEED               = 500         # SCServo moving speed
 MOVING_ACCELERATION        = 255       # SCServo moving acc
 
 
@@ -287,20 +287,21 @@ class Robodog:
         :param steps: The number of steps to complete one elliptical motion.
         :param reverse: Boolean to indicate if the direction of the ellipse should be reversed.
         """
-        power = 1  # Power to adjust the shape of the ellipse
         for step in range(steps):
             for leg_name, mid in midpoint.items():
                 if not reverse:
                     angle = np.radians((360 - (step * 360 / steps) + offset[leg_name]) % 360)
                 else:
                     angle = np.radians((step * 360 / steps + offset[leg_name]) % 360)
-
+                #x = mid[0] + major_radius * np.sign(np.cos(angle))  # X-coordinate follows major 'radius'
+                #z = mid[2] + minor_radius * np.sign(np.sin(angle))  # Z-coordinate follows minor 'radius'
+           
                 x = mid[0] + major_radius * np.cos(angle)  # X-coordinate follows major radius
                 z = mid[2] + minor_radius * np.sin(angle)  # Z-coordinate follows minor radius
                 y = mid[1]  # Y-coordinate is constant
 
                 self.move_leg_to_coordinate(leg_name, (x, y, z))
-            #time.sleep(0.1)  # Adjust the sleep time for the desired speed of motion
+            time.sleep(0.04)  # Adjust the sleep time for the desired speed of motion
 
 
     def move_leg_to_coordinate(self, leg_name, coordinate):
@@ -326,27 +327,26 @@ time.sleep(0.3)
 # Usage example:
 base_height = 150
 midpoints = {
-    "front_left": (-20, -65, -base_height),
-    "front_right": (-20, -65, -base_height),
+    "front_left": (-10, -65, -base_height),
+    "front_right": (-10, -65, -base_height),
     "back_left": (-20, -65, -base_height),
     "back_right": (-20, -65, -base_height)
 }
 radius = 15  # example radius
-major_radius = 40  # example major radius
-minor_radius = 14  # example minor radius
+major_radius = 60  # example major radius
+minor_radius = 20  # example minor radius
 offsets = {
-    "front_left": 10,
-    "front_right": 170,
-    "back_left": 170,
-    "back_right": 10
+    "front_left": 0,
+    "front_right": 180,
+    "back_left": 180,
+    "back_right": 0
 }
-steps = 25
+steps = 20
 
 while True:
     
     #robodog.circular_motion(midpoints, radius, offsets, steps, reverse=False)
     robodog.elliptical_motion(midpoints, major_radius, minor_radius, offsets, steps, reverse=False)
-    time.sleep(0.01)
 
 """
 time.sleep(0.5)
