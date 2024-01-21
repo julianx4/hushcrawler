@@ -6,8 +6,8 @@ import threading
 BAUDRATE = 1000000
 DEVICENAME = '/dev/ttyACM0'
 
-TARGET_POSITION_THRESHOLD  = 100         # SCServo moving status threshold
-MOVING_SPEED               = 500         # SCServo moving speed
+TARGET_POSITION_THRESHOLD  = 200         # SCServo moving status threshold
+MOVING_SPEED               = 50000         # SCServo moving speed
 MOVING_ACCELERATION        = 0       # SCServo moving acc
 
 class Robodog:
@@ -21,54 +21,6 @@ class Robodog:
             quit()
 
         self.center_pos = 2048
-        self.home_pos_angles = {
-            1: 0,
-            2: 60,
-            3: -120,
-            4: 0,
-            5: 60,
-            6: -120,
-            7: 0,
-            8: 60,
-            9: -120,
-            10: 0,
-            11: 60,
-            12: -120
-        }
-        self.streched_angles = {
-            1: 0,
-            2: 0,
-            3: 0,
-            4: 0,
-            5: 0,
-            6: 0,
-            7: 0,
-            8: 0,
-            9: 0,
-            10: 0,
-            11: 0,
-            12: 0
-        }
-        self.home_pos_coordinates = {
-            "front_left": (0, -55, -120),
-            "front_right": (0, -55, -120),
-            "back_left": (0, -55, -120),
-            "back_right": (0, -55, -120)
-        }
-
-        self.lie_flat_coordinates = {
-            "front_left": {"x": 180, "y": -60},
-            "front_right": {"x": 180, "y": -60},
-            "back_left": {"x": 0, "y": -50},
-            "back_right": {"x": 0, "y": -50}
-        }
-
-        self.sit_coordinates = {
-            "front_left": {"x": -10, "y": -180},
-            "front_right": {"x": -10, "y": -180},
-            "back_left": {"x": 0, "y": -50},
-            "back_right": {"x": 0, "y": -50}
-        }
 
         self.servo_directions = {
             1: "CCW",
@@ -91,14 +43,34 @@ class Robodog:
             "back_right": {"hip": 10, "upper": 11, "lower": 12}
         }
 
+        self.home_pos_coordinates = {
+            "front_left": (0, -55, -120),
+            "front_right": (0, -55, -120),
+            "back_left": (0, -55, -120),
+            "back_right": (0, -55, -120)
+        }
+
+        self.lie_flat_coordinates = {
+            "front_left": {"x": 180, "y": -60},
+            "front_right": {"x": 180, "y": -60},
+            "back_left": {"x": 0, "y": -50},
+            "back_right": {"x": 0, "y": -50}
+        }
+
+        self.sit_coordinates = {
+            "front_left": {"x": -10, "y": -180},
+            "front_right": {"x": -10, "y": -180},
+            "back_left": {"x": 0, "y": -50},
+            "back_right": {"x": 0, "y": -50}
+        }
 
     def reset_position(self):
         self.move_legs_to_coordinates(self.home_pos_coordinates)
 
-    def send_goal_position(self, servo_id, goal_position, moving_speed=MOVING_SPEED, moving_acceleration=MOVING_ACCELERATION):
+    def send_goal_servo_position(self, servo_id, goal_position, moving_speed=MOVING_SPEED, moving_acceleration=MOVING_ACCELERATION):
         self.servo_functions.WritePosEx(servo_id, goal_position, moving_speed, moving_acceleration)
 
-    def read_current_position(self, servo_id):
+    def read_current_servo_position(self, servo_id):
         sts_present_position, sts_present_speed, sts_comm_result, sts_error = self.servo_functions.ReadPosSpeed(servo_id)
 
         if sts_present_position == 0 and sts_present_speed == 0:
@@ -106,7 +78,7 @@ class Robodog:
 
         return sts_present_position, sts_present_speed
 
-    def move_servos_to_positions_at_same_time(self, target_angles):
+    def move_servos_to_angles_at_same_time(self, target_angles):
         current_positions = {}
         distances = {}
         max_distance = 0
@@ -115,7 +87,7 @@ class Robodog:
         target_positions = {servo_id: self._angle_to_servo_pos(servo_id, angle) for servo_id, angle in target_angles.items()}
 
         for servo_id, target_position in target_positions.items():
-            current_position, _ = self.read_current_position(servo_id)
+            current_position, _ = self.read_current_servo_position(servo_id)
             if current_position is None:
                 continue
 
@@ -135,23 +107,9 @@ class Robodog:
 
         self.servo_functions.RegAction()
 
-    def move_servos_to_positions_at_same_time2(self, target_angles, speeds):
-        """
-        Moves all servos to their target positions at the same time.
-
-        :param target_angles: Dictionary of servo IDs and their target angles.
-        :param speeds: Dictionary of servo IDs and their speeds.
-        """
-        for servo_id, angle in target_angles.items():
-            goal_position = self._angle_to_servo_pos(servo_id, angle)
-            speed = speeds.get(servo_id, MOVING_SPEED)  # Get speed for this servo, or use default MOVING_SPEED
-            self.servo_functions.RegWritePosEx(servo_id, goal_position, int(speed), MOVING_ACCELERATION)
-
-        self.servo_functions.RegAction()  # Trigger action to move all servos simultaneously
-
     def is_leg_close_to_target(self, target_angles):
         for servo_id, target_angle in target_angles.items():
-            current_position, _ = self.read_current_position(servo_id)
+            current_position, _ = self.read_current_servo_position(servo_id)
             if current_position is None:
                 return False
 
@@ -166,42 +124,34 @@ class Robodog:
         current_angles = {}
 
         for servo_id in range(1, num_servos + 1):
-            position, _ = self.read_current_position(servo_id)
+            position, _ = self.read_current_servo_position(servo_id)
             if position is not None:
                 angle = self._servo_pos_to_angle(servo_id, position)
                 current_angles[servo_id] = angle
 
         return current_angles
 
-    def check_movement(self, num_servos):
+    def get_servo_movement(self, num_servos):
         for servo_id in range(1, num_servos + 1):
             moving, _, _ = self.servo_functions.ReadMoving(servo_id)
             if moving:
                 return True
 
         return False
+    
+    def get_servo_load(self, servo_id):
+        load, _, _ = self.servo_functions.ReadLoad(servo_id)
+        return load
 
     def calibrate_all_connected_servos_to_mid(self, num_of_connected_servos):
         for servo_id in range(1, num_of_connected_servos + 1):
             self.servo_functions.calibrationOfs(servo_id)
 
-        print(self.get_servo_positions(num_of_connected_servos))
+        print(self.get_servo_angles(num_of_connected_servos))
         return
-
-    def set_leg_positions(self, home_pos_angles):
-        leg_positions = {}
-
-        for leg_name, servos in self.leg_configuration.items():
-            leg_positions[leg_name] = {}
-            for part_name, servo_id in servos.items():
-                angle = home_pos_angles[part_name]
-                servo_position = self.angle_to_servo_pos(servo_id, angle)
-                leg_positions[leg_name][part_name] = servo_position
-
-        return leg_positions
     
     def _angle_to_servo_pos(self, servo_id, angle):
-        offset_per_degree = 500 / 45  # Verify this value is correct for your servos
+        offset_per_degree = 4096 / 360
         total_offset = angle * offset_per_degree
 
         servo_pos = int(self.center_pos + total_offset) if self.servo_directions[servo_id] == "CW" else int(self.center_pos - total_offset)
@@ -209,7 +159,7 @@ class Robodog:
         return servo_pos
     
     def _servo_pos_to_angle(self, servo_id, servo_position):
-        offset_per_degree = 500 / 45
+        offset_per_degree = 4096 / 360
         if self.servo_directions[servo_id] == "CW":
             total_offset = servo_position - self.center_pos
         elif self.servo_directions[servo_id] == "CCW":
@@ -244,30 +194,6 @@ class Robodog:
         alpha = np.arctan2(-coord[0],np.sqrt(coord[1]**2+(-coord[2])**2-coxa**2))-np.arctan2(tibia*np.sin(gamma),femur+tibia*np.cos(gamma))
         angles = np.array([-tetta, alpha, gamma])
         return angles
-    
-    def _inverse_kinematics_old(_oldself, x, y):
-        L = 100
-        y = -y
-        x = -x
-
-        D = math.sqrt(x**2 + y**2)
-
-        if D > 2 * L:
-            raise ValueError("Position is unreachable, too far away")
-
-        angle_lower = math.acos((L**2 + L**2 - D**2) / (2 * L * L))
-
-        theta1 = math.atan2(y, x)
-        theta2 = math.acos((D**2 + L**2 - L**2) / (2 * D * L))
-        angle_upper = theta1 - theta2
-
-        angle_upper = math.degrees(angle_upper)
-        angle_lower = math.degrees(angle_lower)
-
-        angle_upper = 90 - angle_upper
-        angle_lower = 180 - angle_lower
-        
-        return angle_upper, -angle_lower
         
     def move_legs_to_coordinates(self, coordinates_dict):
         for leg_name, coordinate in coordinates_dict.items():
@@ -280,15 +206,14 @@ class Robodog:
             target_angles[leg_config["upper"]] = math.degrees(angles[1])
             target_angles[leg_config["lower"]] = math.degrees(angles[2])
 
-            self.move_servos_to_positions_at_same_time(target_angles)
+            self.move_servos_to_angles_at_same_time(target_angles)
             print(leg_name, target_angles)
-
 
     def execute_movement_sequence(self, sequence):
         for movement in sequence:
             self.move_legs_to_coordinates(movement)
             # Check if the last servo has completed its movement
-            while self.check_movement(12):
+            while self.get_servo_movement(12):
                 time.sleep(0.01)
 
     def move_leg_to_coordinate(self, leg_name, coordinate):
@@ -305,7 +230,7 @@ class Robodog:
         target_angles[leg_config["upper"]] = math.degrees(angles[1])
         target_angles[leg_config["lower"]] = math.degrees(angles[2])
 
-        self.move_servos_to_positions_at_same_time(target_angles)
+        self.move_servos_to_angles_at_same_time(target_angles)
 
     def circular_motion(self, midpoint, radius, offset, steps, reverse=False):
         """
@@ -328,21 +253,10 @@ class Robodog:
                 y = mid[1]  # Y-coordinate is taken from the midpoint
 
                 self.move_leg_to_coordinate(leg_name, (x, y, z))
-            while not self.is_leg_close_to_target(target_angles):
-                pass
-
+            time.sleep(0.1)  # Adjust the sleep time for the desired speed of motion
 
     def elliptical_motion(self, midpoint, major_radius, minor_radius, offset, steps, reverse=False):
-        """
-        Make each foot perform an elliptical motion in the X-Z plane with a defined midpoint in 3D space.
 
-        :param midpoint: A dictionary with the midpoints for each leg's ellipse in the format {"front_left": (x, y, z), ...}
-        :param major_radius: The major radius of the ellipse.
-        :param minor_radius: The minor radius of the ellipse.
-        :param offset: A dictionary with the offset for each leg in degrees {"front_left": offset_angle, ...}
-        :param steps: The number of steps to complete one elliptical motion.
-        :param reverse: Boolean to indicate if the direction of the ellipse should be reversed.
-        """
         for step in range(steps):
             target_angles = {}
             for leg_name, mid in midpoint.items():
@@ -364,41 +278,16 @@ class Robodog:
                 target_angles[leg_config["upper"]] = math.degrees(angles[1])
                 target_angles[leg_config["lower"]] = math.degrees(angles[2])
 
-            self.move_servos_to_positions_at_same_time(target_angles)
+            self.move_servos_to_angles_at_same_time(target_angles)
             while not self.is_leg_close_to_target(target_angles):
                 pass
 
 
-            
-
-# Usage example:
-base_height = 120
-center_point = -20
-midpoints = {
-    "front_left": (0 - center_point, -65, -base_height),
-    "front_right": (0 - center_point, -65, -base_height),
-    "back_left": (0 - center_point, -65, -base_height),
-    "back_right": (0 - center_point, -65, -base_height)
-}
-radius = 15  # example radius
-major_radius = 70  # example major radius
-minor_radius = 20  # example minor radius
-offsets = {
-    "front_left": 0,
-    "front_right": 180,
-    "back_left": 180,
-    "back_right": 0
-}
-steps = 20
-
-
 
 robodog = Robodog()
-
-
-
-while True:
-    #robodog.circular_motion(midpoints, radius, offsets, steps, reverse=False)
-    robodog.elliptical_motion(midpoints, major_radius, minor_radius, offsets, steps, reverse=False)
-    #robodog.move_legs_along_path(path, leg_offsets)
-    
+robodog.move_legs_to_coordinates(robodog.home_pos_coordinates)
+# while True:
+#     robodog.send_goal_servo_position(7,1548)
+#     time.sleep(0.31)
+#     robodog.send_goal_servo_position(7,2000)
+#     time.sleep(0.31)

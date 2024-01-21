@@ -1,28 +1,18 @@
-import numpy as np
+import board
+import busio
+import adafruit_bno055
+import time
 
-def checkdomain(D):
-    if D > 1 or D < -1:
-        print("____OUT OF DOMAIN____")
-        if D > 1: 
-            D = 0.99
-            return D
-        elif D < -1:
-            D = -0.99
-            return D
-    else:
-        return D
+i2c = busio.I2C(board.SCL, board.SDA)
 
-def inverse_kinematics(coord):
-    coxa = 55
-    femur = 100
-    tibia = 100
+# Create the sensor object using I2C.
+sensor = adafruit_bno055.BNO055_I2C(i2c)
 
-    D = (coord[1]**2+(-coord[2])**2-coxa**2+(-coord[0])**2-femur**2-tibia**2)/(2*tibia*femur)  #siempre <1
-    D = checkdomain(D)
-    gamma = np.arctan2(-np.sqrt(1-D**2),D)
-    tetta = -np.arctan2(coord[2],coord[1])-np.arctan2(np.sqrt(coord[1]**2+(-coord[2])**2-coxa**2),-coxa)
-    alpha = np.arctan2(-coord[0],np.sqrt(coord[1]**2+(-coord[2])**2-coxa**2))-np.arctan2(tibia*np.sin(gamma),femur+tibia*np.cos(gamma))
-    angles = np.array([-tetta, alpha, gamma])
-    return angles
-
-print(inverse_kinematics([0, 55, -120]))
+# Read the Euler angles for heading, roll, pitch (all in degrees).
+while True:
+    euler = sensor.euler
+    mag = sensor.magnetic
+    gyro = sensor.gyro
+    accel = sensor.acceleration
+    linear_accel = sensor.linear_acceleration
+    gravity = sensor.gravity
